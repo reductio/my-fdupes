@@ -1248,7 +1248,7 @@ void deletefiles(file_t *files, int prompt, FILE *tty, char *logfile)
             log_file_remaining(loginfo, dupelist[x]->d_name);
         }
 	else {
-    if (ISFLAG(flags, F_DEFERCONFIRMATION))
+    if (ISFLAG(flags, F_DEFERCONFIRMATION) && !ISFLAG(flags, F_NOCONFIRMATION))
     {
       firstpreserved = 0;
       for (i = 1; i <= counter; ++i)
@@ -1559,7 +1559,8 @@ void help_text()
   printf("                         particular directory more than once; refer to the\n");
   printf("                         fdupes documentation for additional information\n");
   printf(" -D --deferconfirmation  in interactive mode, defer byte-for-byte confirmation\n");
-  printf("                         of duplicates until just before file deletion\n");
+  printf("                         of duplicates until just before file deletion;\n");
+  printf("                         specify twice to skip confirmation entirely\n");
   printf(" -e --heuristic         use heuristic hashing for large files\n");
 #ifndef NO_NCURSES
   printf(" -P --plain              with --delete, use line-based prompt (as with older\n");
@@ -1780,7 +1781,10 @@ int main(int argc, char **argv) {
       logfile = optarg;
       break;
     case 'D':
-      SETFLAG(flags, F_DEFERCONFIRMATION);
+      if (ISFLAG(flags, F_DEFERCONFIRMATION))
+        SETFLAG(flags, F_NOCONFIRMATION);
+      else
+        SETFLAG(flags, F_DEFERCONFIRMATION);
       break;
     case 'e':
       SETFLAG(flags, F_HEURISTIC);

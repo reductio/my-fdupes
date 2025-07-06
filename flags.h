@@ -30,6 +30,7 @@
 #define F_VACUUMCACHE       0x800000
 #define F_QUICKSUMMARY     0x1000000
 #define F_HEURISTIC        0x2000000
+#define F_NOCONFIRMATION   0x4000000
 
 extern unsigned long flags;
 

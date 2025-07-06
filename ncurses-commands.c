@@ -770,7 +770,7 @@ int cmd_prune(struct filegroup *groups, int groupcount, wchar_t *commandargument
       {
         if (groups[g].files[f].action == FILEACTION_DELETE)
         {
-          if (ISFLAG(flags, F_DEFERCONFIRMATION))
+          if (ISFLAG(flags, F_DEFERCONFIRMATION) && !ISFLAG(flags, F_NOCONFIRMATION))
           {
             format_status_left(status, L"Confirming duplicates...");
             print_status(statuswin, status);
