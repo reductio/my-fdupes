@@ -50,7 +50,8 @@ Usage: fdupes [options] DIRECTORY...
                          particular directory more than once; refer to the
                          fdupes documentation for additional information
 -D --deferconfirmation  in interactive mode, defer byte-for-byte confirmation
-                        of duplicates until just before file deletion
+                        of duplicates until just before file deletion;
+                        specify twice (-DD) to skip confirmation entirely
 -e --heuristic         use heuristic hashing for large files
 -P --plain              with --delete, use line-based prompt (as with older
                          versions of fdupes) instead of screen-mode interface
