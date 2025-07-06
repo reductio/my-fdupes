@@ -512,6 +512,8 @@ md5_byte_t *getcrcsignatureuntil(char *filename, off_t fsize, off_t max_read)
   return digest;
 }
 
+md5_byte_t *getheuristicsignature(char *filename, off_t fsize);
+
 md5_byte_t *getcrcsignature(char *filename, off_t fsize)
 {
   if (ISFLAG(flags, F_HEURISTIC) && fsize > HEURISTIC_LIMIT)
