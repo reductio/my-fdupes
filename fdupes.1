@@ -103,6 +103,10 @@ below).
 In interactive mode, defer byte-for-byte confirmation of
 duplicates until just before file deletion.
 .TP
+.B -e --heuristic
+Use heuristic hashing for files larger than 3MB, hashing the first and last
+megabyte and 1MB every 50MB.
+.TP
 .B -P --plain
 With --delete, use a line-based prompt (as with older versions of
 fdupes) instead of the new screen-mode interface. On installations
