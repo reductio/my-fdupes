@@ -8,8 +8,9 @@ contributors names and identifiers please see the CONTRIBUTORS file.
 
 Changes from 2.3.2 to 2.4.0:
 
- - Add quick summary option that skips byte-for-byte match confirmation.
- - Reduce number of progress indicator updates for better performance.
+- Add quick summary option that skips byte-for-byte match confirmation.
+- Reduce number of progress indicator updates for better performance.
+- Added --heuristic option to hash large files using selected blocks.
 
 Changes from 2.3.1 to 2.3.2:
 

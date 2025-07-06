@@ -58,6 +58,11 @@
   #include "xdgbase.h"
 #endif
 
+#define ONE_MB ((off_t)1048576)
+#define HEURISTIC_BLOCK ONE_MB
+#define HEURISTIC_LIMIT (3 * ONE_MB)
+#define HEURISTIC_INTERVAL (50 * ONE_MB)
+
 #ifdef __APPLE__
 #include <mach/mach_time.h>
 #endif
@@ -509,12 +514,120 @@ md5_byte_t *getcrcsignatureuntil(char *filename, off_t fsize, off_t max_read)
 
 md5_byte_t *getcrcsignature(char *filename, off_t fsize)
 {
+  if (ISFLAG(flags, F_HEURISTIC) && fsize > HEURISTIC_LIMIT)
+    return getheuristicsignature(filename, fsize);
   return getcrcsignatureuntil(filename, fsize, 0);
 }
 
 md5_byte_t *getcrcpartialsignature(char *filename, off_t fsize)
 {
   return getcrcsignatureuntil(filename, fsize, PARTIAL_MD5_SIZE);
+}
+
+md5_byte_t *getheuristicsignature(char *filename, off_t fsize)
+{
+  off_t offset;
+  off_t remaining;
+  md5_state_t state;
+  md5_byte_t *digest;
+  static md5_byte_t chunk[CHUNK_SIZE];
+  FILE *file;
+  size_t toread;
+
+  digest = (md5_byte_t*)malloc(MD5_DIGEST_LENGTH * sizeof(md5_byte_t));
+  if (digest == NULL) {
+    errormsg("out of memory\n");
+    exit(1);
+  }
+
+  md5_init(&state);
+
+  file = fopen(filename, "rb");
+  if (file == NULL) {
+    errormsg("error opening file %s\n", filename);
+    return NULL;
+  }
+
+  /* first block */
+  remaining = HEURISTIC_BLOCK;
+  if (remaining > fsize)
+    remaining = fsize;
+  offset = 0;
+  if (fseeko(file, offset, SEEK_SET) != 0) {
+    errormsg("error seeking in file %s\n", filename);
+    fclose(file);
+    return NULL;
+  }
+  while (remaining > 0) {
+    if (got_sigint) {
+      fclose(file);
+      printf("\n");
+      exit(0);
+    }
+    toread = remaining >= CHUNK_SIZE ? CHUNK_SIZE : remaining;
+    if (fread(chunk, toread, 1, file) != 1) {
+      errormsg("error reading from file %s\n", filename);
+      fclose(file);
+      return NULL;
+    }
+    md5_append(&state, chunk, toread);
+    remaining -= toread;
+  }
+
+  /* blocks every HEURISTIC_INTERVAL */
+  for (offset = HEURISTIC_INTERVAL; offset + HEURISTIC_BLOCK < fsize; offset += HEURISTIC_INTERVAL) {
+    remaining = HEURISTIC_BLOCK;
+    if (fseeko(file, offset, SEEK_SET) != 0) {
+      errormsg("error seeking in file %s\n", filename);
+      fclose(file);
+      return NULL;
+    }
+    while (remaining > 0) {
+      if (got_sigint) {
+        fclose(file);
+        printf("\n");
+        exit(0);
+      }
+      toread = remaining >= CHUNK_SIZE ? CHUNK_SIZE : remaining;
+      if (fread(chunk, toread, 1, file) != 1) {
+        errormsg("error reading from file %s\n", filename);
+        fclose(file);
+        return NULL;
+      }
+      md5_append(&state, chunk, toread);
+      remaining -= toread;
+    }
+  }
+
+  /* last block */
+  if (fsize > HEURISTIC_BLOCK) {
+    offset = fsize - HEURISTIC_BLOCK;
+    remaining = HEURISTIC_BLOCK;
+    if (fseeko(file, offset, SEEK_SET) != 0) {
+      errormsg("error seeking in file %s\n", filename);
+      fclose(file);
+      return NULL;
+    }
+    while (remaining > 0) {
+      if (got_sigint) {
+        fclose(file);
+        printf("\n");
+        exit(0);
+      }
+      toread = remaining >= CHUNK_SIZE ? CHUNK_SIZE : remaining;
+      if (fread(chunk, toread, 1, file) != 1) {
+        errormsg("error reading from file %s\n", filename);
+        fclose(file);
+        return NULL;
+      }
+      md5_append(&state, chunk, toread);
+      remaining -= toread;
+    }
+  }
+
+  md5_finish(&state, digest);
+  fclose(file);
+  return digest;
 }
 
 int md5cmp(const md5_byte_t *a, const md5_byte_t *b)
@@ -1447,6 +1560,7 @@ void help_text()
   printf("                         fdupes documentation for additional information\n");
   printf(" -D --deferconfirmation  in interactive mode, defer byte-for-byte confirmation\n");
   printf("                         of duplicates until just before file deletion\n");
+  printf(" -e --heuristic         use heuristic hashing for large files\n");
 #ifndef NO_NCURSES
   printf(" -P --plain              with --delete, use line-based prompt (as with older\n");
   printf("                         versions of fdupes) instead of screen-mode interface\n");
@@ -1549,6 +1663,7 @@ int main(int argc, char **argv) {
     { "reverse", 0, 0, 'i' },
     { "log", 1, 0, 'l' },
     { "deferconfirmation", 0, 0, 'D' },
+    { "heuristic", 0, 0, 'e' },
     { "cache", 0, 0, 'c' },
     { 0, 0, 0, 0 }
   };
@@ -1563,7 +1678,7 @@ int main(int argc, char **argv) {
 
   oldargv = cloneargs(argc, argv);
 
-  while ((opt = GETOPT(argc, argv, "frRq1StsHG:L:nAdPvhNImMpo:il:Dcx:"
+  while ((opt = GETOPT(argc, argv, "frRq1StsHG:L:nAdPvhNImMpo:il:Decx:"
 #ifdef HAVE_GETOPT_H
           , long_options, NULL
 #endif
@@ -1666,6 +1781,9 @@ int main(int argc, char **argv) {
       break;
     case 'D':
       SETFLAG(flags, F_DEFERCONFIRMATION);
+      break;
+    case 'e':
+      SETFLAG(flags, F_HEURISTIC);
       break;
     case 'c':
       SETFLAG(flags, F_CACHESIGNATURES);
